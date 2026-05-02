@@ -1,0 +1,70 @@
+portfolio:
+  name: "Fixed Income Trading"
+  base_currency: USD
+  valuation_date: null  # Set dynamically at runtime
+
+assets:
+  - id: UST_2Y
+    type: bond
+    description: "US Treasury 2-Year Note"
+    book: trading
+    ifrs_category: FVTPL
+    face_value: 1_000_000
+    coupon_rate: 0.0450       # 4.50% annual
+    coupon_frequency: 2       # Semi-annual
+    issue_date: "2023-06-15"
+    maturity_date: "2025-06-15"
+    purchase_price: 99.50     # % of par
+    purchase_yield: 0.0474
+    fred_tenor: 2Y
+
+  - id: UST_10Y
+    type: bond
+    description: "US Treasury 10-Year Note"
+    book: banking
+    ifrs_category: amortised_cost
+    face_value: 2_000_000
+    coupon_rate: 0.0400       # 4.00% annual
+    coupon_frequency: 2
+    issue_date: "2022-11-15"
+    maturity_date: "2032-11-15"
+    purchase_price: 97.25
+    purchase_yield: 0.0432
+    fred_tenor: 10Y
+
+  - id: UST_30Y
+    type: bond
+    description: "US Treasury 30-Year Bond"
+    book: trading
+    ifrs_category: FVTPL
+    face_value: 500_000
+    coupon_rate: 0.0475       # 4.75% annual
+    coupon_frequency: 2
+    issue_date: "2023-02-15"
+    maturity_date: "2053-02-15"
+    purchase_price: 98.00
+    purchase_yield: 0.0488
+    fred_tenor: 30Y
+
+  - id: USD_IRS_5Y
+    type: irs
+    description: "USD Interest Rate Swap 5-Year Pay Fixed / Receive SOFR"
+    book: trading
+    ifrs_category: FVTPL
+    notional: 5_000_000
+    fixed_rate: 0.0420        # 4.20% fixed leg
+    floating_index: SOFR
+    payment_frequency: 4      # Quarterly
+    trade_date: "2023-09-20"
+    effective_date: "2023-09-22"
+    maturity_date: "2028-09-22"
+    direction: pay_fixed       # We pay fixed, receive floating
+
+settings:
+  data_window_days: 30
+  dv01_bump_bps: 1
+  break_threshold_usd: 5_000  # Flag if FO vs Ledger diff exceeds this
+  #injected_break:
+  #  asset_id: UST_10Y
+  #  date: null                 # Populated dynamically (T-1)
+  #  amount: 10_000             # USD hardcoded ledger error for demo

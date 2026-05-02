@@ -1,0 +1,5 @@
+asset_id,type,description,book,ifrs_category,maturity_date,issue_date,face_value,coupon_rate,coupon_frequency,purchase_price,purchase_yield,notional,fixed_rate,floating_index,payment_frequency,trade_date,effective_date,direction
+UST_2Y,bond,US Treasury 2-Year Note,trading,FVTPL,2025-06-15,2023-06-15,1000000,0.0450,2,99.50,0.0474,,,,,,,
+UST_10Y,bond,US Treasury 10-Year Note,banking,amortised_cost,2032-11-15,2022-11-15,2000000,0.0400,2,97.25,0.0432,,,,,,,
+UST_30Y,bond,US Treasury 30-Year Bond,trading,FVTPL,2053-02-15,2023-02-15,500000,0.0475,2,98.00,0.0488,,,,,,,
+USD_IRS_5Y,irs,USD Interest Rate Swap 5-Year Pay Fixed / Receive SOFR,trading,FVTPL,2028-09-22,,,,,,,5000000,0.0420,SOFR,4,2023-09-20,2023-09-22,pay_fixed

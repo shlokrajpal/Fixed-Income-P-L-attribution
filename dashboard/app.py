@@ -10,6 +10,7 @@ import numpy as np
 import plotly.graph_objects as go
 import yaml
 import logging
+import csv
 
 from ingestion.fred_client import FredClient
 from ingestion.data_processor import DataProcessor
@@ -33,7 +34,36 @@ CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "portfolio
 @st.cache_data(show_spinner="Loading portfolio config...")
 def load_config():
     with open(CONFIG_PATH) as f:
-        return yaml.safe_load(f)
+        cfg = yaml.safe_load(f)
+ 
+    # Load assets from security_master.csv instead of YAML
+    csv_path = os.path.join(
+        os.path.dirname(CONFIG_PATH), "..",
+        cfg["settings"]["security_master_path"]
+    )
+    assets = []
+    with open(os.path.normpath(csv_path), newline="") as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            asset = {k: v.strip() for k, v in row.items() if k is not None}
+            asset = {k: v for k, v in asset.items() if v != ""}
+ 
+            # Remap CSV column name to the key the rest of the codebase expects
+            if "asset_id" in asset:
+                asset["id"] = asset.pop("asset_id")
+ 
+            # Cast numeric fields
+            for int_field in ["coupon_frequency", "payment_frequency"]:
+                if int_field in asset:
+                    asset[int_field] = int(asset[int_field])
+            for float_field in ["face_value", "coupon_rate", "purchase_price",
+                                 "purchase_yield", "notional", "fixed_rate"]:
+                if float_field in asset:
+                    asset[float_field] = float(asset[float_field])
+            assets.append(asset)
+ 
+    cfg["assets"] = assets
+    return cfg
 
 config = load_config()
 
@@ -44,7 +74,7 @@ with st.sidebar:
     st.divider()
 
 if not run:
-    st.info("Enter your FRED API key in the sidebar and click **Fetch & Price** to begin.")
+    st.info("click **Fetch & Price** to begin.")
     st.stop()
 
 with st.spinner("Fetching market data from FRED..."):
@@ -96,7 +126,7 @@ col1.metric("Total P&L",   f"${total_row['total_pl_usd']:,.0f}")
 col2.metric("Rate Move",   f"${total_row['rate_move_usd']:,.0f}")
 col3.metric("Carry",       f"${total_row['carry_usd']:,.0f}")
 col4.metric("Residual",    f"${total_row['residual_usd']:,.0f}",
-            delta="Model Exception" if total_row["model_exception"] else "✓ Clean",
+            delta="Model Exception" if total_row["model_exception"] else "",
             delta_color="inverse" if total_row["model_exception"] else "normal")
 
 st.divider()
@@ -185,21 +215,26 @@ st.subheader("FO vs Ledger Reconciliation (Break Log)")
 recon_t  = recon_df.copy()
 recon_t1 = recon_prev.copy()
 
-# Merge T and T-1
 merged = recon_t.merge(
-    recon_t1[["asset_id", "ledger_value_usd"]].rename(columns={"ledger_value_usd": "ledger_t1_usd"}),
+    recon_t1[["asset_id", "ledger_value_usd"]].rename(
+        columns={"ledger_value_usd": "ledger_t1_usd"}
+    ),
     on="asset_id",
-    how="left"
+    how="left",
 )
 merged["ledger_daily_move"] = merged["ledger_value_usd"] - merged["ledger_t1_usd"]
 
 display_recon = merged[[
     "asset_id", "ifrs_category", "book",
-    "fo_value_usd", "ledger_value_usd", "break_usd", "break_flag"
+    "fo_value_usd", "ledger_value_usd",
+    "unrealized_gain_loss",          # New: MTM vs book for AC assets
+    "break_usd", "break_flag",
 ]].copy()
 display_recon.columns = [
     "Asset", "IFRS Category", "Book",
-    "FO Value ($)", "Ledger Value ($)", "Break ($)", "Break Flag"
+    "FO Value ($)", "Ledger Value ($)",
+    "Unrealized G/L ($)",            # Informational — not a break
+    "Break ($)", "Break Flag",
 ]
 
 def style_break(row):
@@ -207,7 +242,7 @@ def style_break(row):
         return ["background-color: #FEE2E2"] * len(row)
     return [""] * len(row)
 
-fmt_recon = ["FO Value ($)", "Ledger Value ($)", "Break ($)"]
+fmt_recon = ["FO Value ($)", "Ledger Value ($)", "Unrealized G/L ($)", "Break ($)"]
 st.dataframe(
     display_recon.style
         .format({c: "{:,.2f}" for c in fmt_recon})
@@ -219,8 +254,10 @@ st.dataframe(
 # Break summary
 breaks = display_recon[display_recon["Break Flag"]]
 if not breaks.empty:
-    st.warning(f"**{len(breaks)} break(s) detected** exceeding threshold. "
-               f"Total break: ${display_recon['Break ($)'].abs().sum():,.2f}")
+    st.warning(
+        f"**{len(breaks)} break(s) detected** exceeding threshold. "
+        f"Total break: ${display_recon['Break ($)'].abs().sum():,.2f}"
+    )
     with st.expander("Break Details"):
         for _, b in breaks.iterrows():
             st.error(
